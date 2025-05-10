@@ -312,56 +312,76 @@ static NTSTATUS NTAPI HookNtQuerySystemInformation(
         {
         case SystemKernelDebuggerInformation:
         {
-            if (Hider::IsHidden(pid, HideSystemDebuggerInformation))
+            Log("[TITANHIDE] SystemKernelDebuggerInformation by %d\r\n", pid);
+            typedef struct _SYSTEM_KERNEL_DEBUGGER_INFORMATION
             {
-                Log("[TITANHIDE] SystemKernelDebuggerInformation by %d\r\n", pid);
-                typedef struct _SYSTEM_KERNEL_DEBUGGER_INFORMATION
-                {
-                    BOOLEAN DebuggerEnabled;
-                    BOOLEAN DebuggerNotPresent;
-                } SYSTEM_KERNEL_DEBUGGER_INFORMATION, * PSYSTEM_KERNEL_DEBUGGER_INFORMATION;
-                SYSTEM_KERNEL_DEBUGGER_INFORMATION* DebuggerInfo = (SYSTEM_KERNEL_DEBUGGER_INFORMATION*)SystemInformation;
-                __try
-                {
-                    BACKUP_RETURNLENGTH();
+                BOOLEAN DebuggerEnabled;
+                BOOLEAN DebuggerNotPresent;
+            } SYSTEM_KERNEL_DEBUGGER_INFORMATION, * PSYSTEM_KERNEL_DEBUGGER_INFORMATION;
+            SYSTEM_KERNEL_DEBUGGER_INFORMATION* DebuggerInfo = (SYSTEM_KERNEL_DEBUGGER_INFORMATION*)SystemInformation;
+            __try
+            {
+                BACKUP_RETURNLENGTH();
 
-                    DebuggerInfo->DebuggerEnabled = false;
-                    DebuggerInfo->DebuggerNotPresent = true;
+                DebuggerInfo->DebuggerEnabled = false;
+                DebuggerInfo->DebuggerNotPresent = true;
 
-                    RESTORE_RETURNLENGTH();
-                }
-                __except (EXCEPTION_EXECUTE_HANDLER)
-                {
-                    ret = GetExceptionCode();
-                }
+                RESTORE_RETURNLENGTH();
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER)
+            {
+                ret = GetExceptionCode();
             }
             break;
         }
         case SystemKernelDebuggerInformationEx:
         {
-            if (Hider::IsHidden(pid, HideSystemDebuggerInformation))
+            Log("[TITANHIDE] SystemKernelDebuggerInformationEx by %d\r\n", pid);
+            typedef struct _SYSTEM_KERNEL_DEBUGGER_INFORMATION_EX
             {
-                Log("[TITANHIDE] SystemKernelDebuggerInformationEx by %d\r\n", pid);
-                typedef struct _SYSTEM_KERNEL_DEBUGGER_INFORMATION_EX
-                {
-                    BOOLEAN DebuggerAllowed;
-                    BOOLEAN DebuggerEnabled;
-                    BOOLEAN DebuggerPresent;
-                } SYSTEM_KERNEL_DEBUGGER_INFORMATION_EX, * PSYSTEM_KERNEL_DEBUGGER_INFORMATION_EX;
-                PSYSTEM_KERNEL_DEBUGGER_INFORMATION_EX DebuggerInfo = (PSYSTEM_KERNEL_DEBUGGER_INFORMATION_EX)SystemInformation;
-                __try
-                {
-                    BACKUP_RETURNLENGTH();
+                BOOLEAN DebuggerAllowed;
+                BOOLEAN DebuggerEnabled;
+                BOOLEAN DebuggerPresent;
+            } SYSTEM_KERNEL_DEBUGGER_INFORMATION_EX, * PSYSTEM_KERNEL_DEBUGGER_INFORMATION_EX;
+            PSYSTEM_KERNEL_DEBUGGER_INFORMATION_EX DebuggerInfo = (PSYSTEM_KERNEL_DEBUGGER_INFORMATION_EX)SystemInformation;
+            __try
+            {
+                BACKUP_RETURNLENGTH();
 
-                    DebuggerInfo->DebuggerAllowed = false;
-                    DebuggerInfo->DebuggerEnabled = false;
-                    DebuggerInfo->DebuggerPresent = false;
+                DebuggerInfo->DebuggerAllowed = false;
+                DebuggerInfo->DebuggerEnabled = false;
+                DebuggerInfo->DebuggerPresent = false;
 
-                    RESTORE_RETURNLENGTH();
-                }
-                __except (EXCEPTION_EXECUTE_HANDLER)
+                RESTORE_RETURNLENGTH();
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER)
+            {
+                ret = GetExceptionCode();
+            }
+            break;
+        }
+        case SystemFirmwareTableInformation:
+        {
+            Log("[TITANHIDE] SystemFirmwareTableInformation by %d\r\n", pid);
+            PSYSTEM_FIRMWARE_TABLE_INFORMATION FirmwareTableInfo = (PSYSTEM_FIRMWARE_TABLE_INFORMATION)SystemInformation;
+            if (FirmwareTableInfo->Action == SystemFirmwareTable_Get && FirmwareTableInfo->ProviderSignature == 'RSMB')
+            {
+                for (SIZE_T i = 5; i < FirmwareTableInfo->TableBufferLength; ++i)
                 {
-                    ret = GetExceptionCode();
+                    if ((FirmwareTableInfo->TableBuffer[i - 5] == 'V' || FirmwareTableInfo->TableBuffer[i - 5] == 'v') &&
+                        (FirmwareTableInfo->TableBuffer[i - 4] == 'M' || FirmwareTableInfo->TableBuffer[i - 4] == 'm') &&
+                        (FirmwareTableInfo->TableBuffer[i - 3] == 'W' || FirmwareTableInfo->TableBuffer[i - 3] == 'w') &&
+                        (FirmwareTableInfo->TableBuffer[i - 2] == 'A' || FirmwareTableInfo->TableBuffer[i - 2] == 'a') &&
+                        (FirmwareTableInfo->TableBuffer[i - 1] == 'R' || FirmwareTableInfo->TableBuffer[i - 1] == 'r') &&
+                        (FirmwareTableInfo->TableBuffer[i - 0] == 'E' || FirmwareTableInfo->TableBuffer[i - 0] == 'e'))
+                    {
+                        FirmwareTableInfo->TableBuffer[i - 5] = 'N';
+                        FirmwareTableInfo->TableBuffer[i - 4] = 'I';
+                        FirmwareTableInfo->TableBuffer[i - 3] = 'G';
+                        FirmwareTableInfo->TableBuffer[i - 2] = 'G';
+                        FirmwareTableInfo->TableBuffer[i - 1] = 'E';
+                        FirmwareTableInfo->TableBuffer[i - 0] = 'R';
+                    }
                 }
             }
             break;
@@ -393,12 +413,22 @@ static NTSTATUS NTAPI HookNtQueryObject(
                 BACKUP_RETURNLENGTH();
 
                 OBJECT_TYPE_INFORMATION* type = (OBJECT_TYPE_INFORMATION*)ObjectInformation;
-                ProbeForRead(type->TypeName.Buffer, 1, 1);
-                if(RtlEqualUnicodeString(&type->TypeName, &DebugObject, FALSE)) //DebugObject
+
+                if (ObjectInformation == ReturnLength - 2)
                 {
-                    Log("[TITANHIDE] DebugObject by %d\r\n", pid);
-                    type->TotalNumberOfObjects = 0;
-                    type->TotalNumberOfHandles = 0;
+                    Log("[TITANHIDE] VMP DebugObject by %d\r\n", pid);
+                    type->TotalNumberOfObjects -= 1;
+                    type->TotalNumberOfHandles -= 1;
+                }
+                else
+                {
+                    ProbeForRead(type->TypeName.Buffer, 1, 1);
+                    if (RtlEqualUnicodeString(&type->TypeName, &DebugObject, FALSE)) //DebugObject
+                    {
+                        Log("[TITANHIDE] DebugObject by %d\r\n", pid);
+                        type->TotalNumberOfObjects -= 1;
+                        type->TotalNumberOfHandles -= 1;
+                    }
                 }
 
                 RESTORE_RETURNLENGTH();

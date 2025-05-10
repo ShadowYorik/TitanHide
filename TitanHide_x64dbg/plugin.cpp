@@ -16,7 +16,7 @@ static ULONG GetTitanHideOptions()
 
 static bool TitanHideCall(HIDE_COMMAND Command)
 {
-    HANDLE hDevice = CreateFileA("\\\\.\\TitanHide", GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
+    HANDLE hDevice = CreateFileA("\\\\.\\Manul", GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
     if(hDevice == INVALID_HANDLE_VALUE)
     {
         _plugin_logputs("[" PLUGIN_NAME "] Could not open TitanHide handle...");

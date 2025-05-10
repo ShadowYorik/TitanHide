@@ -103,8 +103,8 @@ extern "C" NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRI
     }
 
     //create io device
-    RtlInitUnicodeString(&DeviceName, L"\\Device\\TitanHide");
-    RtlInitUnicodeString(&Win32Device, L"\\DosDevices\\TitanHide");
+    RtlInitUnicodeString(&DeviceName, L"\\Device\\Manul");
+    RtlInitUnicodeString(&Win32Device, L"\\DosDevices\\Manul");
     status = IoCreateDevice(DriverObject,
                             0,
                             &DeviceName,
